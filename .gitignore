@@ -1,24 +1,15 @@
-# Virtual environment
+# Virtual Environment
 .venv/
-venv/
+
+# Environment Variables
+.env
 
 # Python
 __pycache__/
-*.py[cod]
-*.egg-info/
+*.pyc
 
-# Environment variables
-.env
-
-# IDE
+# VS Code
 .vscode/
-.idea/
 
 # macOS
 .DS_Store
-
-# Testing
-.pytest_cache/
-
-# Logs
-*.log
