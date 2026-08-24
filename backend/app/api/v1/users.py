@@ -3,13 +3,13 @@ from sqlalchemy.orm import Session
 
 from app.database.session import get_db
 from app.repositories.user_repository import UserRepository
-from app.schemas.auth import LoginRequest, TokenResponse
+from app.schemas.user import UserCreate, UserResponse
 from app.services.user_service import UserService
 
 
 router = APIRouter(
-    prefix="/auth",
-    tags=["Authentication"],
+    prefix="/users",
+    tags=["Users"],
 )
 
 
@@ -18,27 +18,22 @@ service = UserService(repository)
 
 
 @router.post(
-    "/login",
-    response_model=TokenResponse,
+    "/register",
+    response_model=UserResponse,
+    status_code=status.HTTP_201_CREATED,
 )
-def login(
-    login_data: LoginRequest,
+def register_user(
+    user_data: UserCreate,
     db: Session = Depends(get_db),
 ):
     try:
-        access_token = service.login_user(
+        return service.register_user(
             db,
-            login_data.email,
-            login_data.password,
-        )
-
-        return TokenResponse(
-            access_token=access_token,
-            token_type="bearer",
+            user_data,
         )
 
     except ValueError as exception:
         raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
+            status_code=status.HTTP_409_CONFLICT,
             detail=str(exception),
         )

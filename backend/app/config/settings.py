@@ -12,8 +12,8 @@ class Settings(BaseSettings):
     qdrant_url: str
 
     jwt_secret: str
-    jwt_algorithm: str
-    jwt_expire_minutes: int
+    jwt_algorithm: str = "HS256"
+    jwt_expire_minutes: int = 60
 
     model_config = SettingsConfigDict(
         env_file=".env",
