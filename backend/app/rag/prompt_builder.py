@@ -4,6 +4,7 @@ class PromptBuilder:
         self,
         question: str,
         documents: list[dict],
+        history: list[dict] | None = None,
     ) -> list[dict]:
 
         context_parts = []
@@ -16,10 +17,13 @@ class PromptBuilder:
 
         context = "\n\n".join(context_parts)
 
-        system_prompt = """
+        if not context:
+            context = "No relevant information was found in the knowledge base."
+
+        system_prompt = f"""
 You are an enterprise customer support assistant.
 
-Answer the user's question using ONLY the provided context.
+Answer the user's question using ONLY the provided knowledge base context.
 
 If the answer cannot be found in the context, say:
 "I don't have enough information in the knowledge base to answer that."
@@ -27,25 +31,27 @@ If the answer cannot be found in the context, say:
 Do not invent policies, dates, prices, or other facts.
 
 Be concise and helpful.
-""".strip()
 
-        user_prompt = f"""
-Context:
+Knowledge base context:
 
 {context}
-
-User question:
-
-{question}
 """.strip()
 
-        return [
+        messages = [
             {
                 "role": "system",
                 "content": system_prompt,
-            },
+            }
+        ]
+
+        if history:
+            messages.extend(history)
+
+        messages.append(
             {
                 "role": "user",
-                "content": user_prompt,
-            },
-        ]
+                "content": question,
+            }
+        )
+
+        return messages

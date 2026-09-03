@@ -19,21 +19,18 @@ class RAGAnswerService:
         self,
         question: str,
         limit: int = 5,
+        history: list[dict] | None = None,
     ) -> str:
 
-        # 1. Retrieve relevant documents
         documents = self.rag_service.search(
             question,
             limit,
         )
 
-        # 2. Build grounded prompt
         messages = self.prompt_builder.build(
-            question,
-            documents,
+            question=question,
+            documents=documents,
+            history=history,
         )
 
-        # 3. Ask OpenAI
-        return self.ai_service.generate_response(
-            messages
-        )
+        return self.ai_service.generate_response(messages)

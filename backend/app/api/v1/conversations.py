@@ -2,19 +2,30 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
 from app.database.session import get_db
+
 from app.repositories.conversation_repository import ConversationRepository
+from app.repositories.message_repository import MessageRepository
+
 from app.schemas.conversation import (
     ConversationCreate,
     ConversationResponse,
 )
 from app.schemas.message import MessageCreate, MessageResponse
+from app.schemas.chat import ChatRequest, ChatResponse
+
 from app.services.conversation_service import ConversationService
 from app.services.message_service import MessageService
-from app.repositories.message_repository import MessageRepository
-
-from app.schemas.chat import ChatRequest, ChatResponse
 from app.services.ai_service import AIService
 from app.services.chat_service import ChatService
+
+from app.rag.embeddings import EmbeddingService
+from app.rag.vector_store import VectorStore
+from app.rag.rag_service import RAGService
+from app.rag.prompt_builder import PromptBuilder
+from app.rag.rag_answer_service import RAGAnswerService
+
+from app.services.tool_calling_service import ToolCallingService
+from app.tools.tool_executor import ToolExecutor
 
 
 router = APIRouter(
@@ -23,8 +34,20 @@ router = APIRouter(
 )
 
 
+# ---------------------------------------------------------
+# Conversation dependencies
+# ---------------------------------------------------------
+
 repository = ConversationRepository()
-service = ConversationService(repository)
+
+service = ConversationService(
+    repository,
+)
+
+
+# ---------------------------------------------------------
+# Message dependencies
+# ---------------------------------------------------------
 
 message_repository = MessageRepository()
 
@@ -32,13 +55,60 @@ message_service = MessageService(
     message_repository,
     repository,
 )
+
+
+# ---------------------------------------------------------
+# RAG dependencies
+# ---------------------------------------------------------
+
+embedding_service = EmbeddingService()
+
+vector_store = VectorStore()
+
+rag_service = RAGService(
+    embedding_service,
+    vector_store,
+)
+
+prompt_builder = PromptBuilder()
+
+
+# ---------------------------------------------------------
+# AI + RAG Answer dependencies
+# ---------------------------------------------------------
+
 ai_service = AIService()
 
-chat_service = ChatService(
-    message_service,
+rag_answer_service = RAGAnswerService(
+    rag_service,
+    prompt_builder,
     ai_service,
 )
 
+
+# ---------------------------------------------------------
+# Chat service
+# ---------------------------------------------------------
+
+tool_executor = ToolExecutor()
+
+tool_calling_service = ToolCallingService(
+    ai_service,
+    tool_executor,
+)
+
+chat_service = ChatService(
+    message_service,
+    rag_service,
+    prompt_builder,
+    ai_service,
+    tool_calling_service,
+)
+
+
+# =========================================================
+# Create conversation
+# =========================================================
 
 @router.post(
     "",
@@ -62,6 +132,10 @@ def create_conversation(
         )
 
 
+# =========================================================
+# Get conversation
+# =========================================================
+
 @router.get(
     "/{conversation_id}",
     response_model=ConversationResponse,
@@ -82,6 +156,10 @@ def get_conversation(
             detail=str(exception),
         )
 
+
+# =========================================================
+# Add message
+# =========================================================
 
 @router.post(
     "/{conversation_id}/messages",
@@ -108,6 +186,10 @@ def add_message(
         )
 
 
+# =========================================================
+# Get messages
+# =========================================================
+
 @router.get(
     "/{conversation_id}/messages",
     response_model=list[MessageResponse],
@@ -128,6 +210,11 @@ def get_messages(
             detail=str(exception),
         )
 
+
+# =========================================================
+# AI Chat - RAG + Conversation History
+# =========================================================
+
 @router.post(
     "/{conversation_id}/chat",
     response_model=ChatResponse,
@@ -138,14 +225,14 @@ def chat(
     db: Session = Depends(get_db),
 ):
     try:
-        user_message, assistant_message = chat_service.chat(
+        assistant_message = chat_service.chat(
             db,
             conversation_id,
             chat_data.content,
         )
 
         return ChatResponse(
-            user_message=user_message,
+            user_message=chat_data.content,
             assistant_message=assistant_message,
         )
 

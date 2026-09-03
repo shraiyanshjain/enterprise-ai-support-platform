@@ -14,3 +14,17 @@ class AIService:
         )
 
         return response.choices[0].message.content
+
+    def generate_response_with_tools(
+         self,
+         messages: list[dict],
+         tools: list[dict],
+    ):
+        response = client.chat.completions.create(
+        model="gpt-4o-mini",
+        messages=messages,
+        tools=tools,
+        tool_choice="auto",
+    )
+
+        return response
